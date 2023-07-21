@@ -13,7 +13,7 @@ namespace ArenaSimulator.API
     {
         public static async Task<List<ChainModel>> LoadRPCALL()
         {
-            var client = new RestClient("https://chronicles-commander.top:5050/rpc");
+            var client = new RestClient("https://api.9capi.com/rpc");
             var request = new RestRequest();
             RestResponse response = client.Execute(request);
             while (response.StatusCode != System.Net.HttpStatusCode.OK)

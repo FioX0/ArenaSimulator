@@ -101,9 +101,9 @@ namespace ArenaSimulator
             //Pressing Refresh updates the leaderboard list.
             //First let's check if user is spamming the button, if so let's stop them and tell them that it's pointless as we don't update it so often.
             var diffOfDates = DateTime.UtcNow - lastpull;
-            if(diffOfDates.TotalMinutes < 1)
+            if(diffOfDates.TotalSeconds < 10)
             {
-                MessageBox.Show("There's no need to refresh this quick.\nLeaderboard only updates every 1-2minutes.");
+                MessageBox.Show("There's no need to refresh this quick.\nLeaderboard only updates every 30seconds.");
                 return;
             }
 

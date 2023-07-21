@@ -14,7 +14,7 @@ namespace ArenaSimulator.API
     {
         public static async Task<List<ArenaLeaderBoard>> GetStats() 
         {
-            var client = new RestClient("https://chronicles-commander.top:5050/arenaLeaderboard");
+            var client = new RestClient("https://api.9capi.com/arenaLeaderboard");
             var request = new RestRequest();
             request.AddHeader("Content-Type", "application/json");
             //var body = @"{""avatarAddress"": ""0x3b7a47daaece48807fc00a310b05bd9f5d26736e"",""enemyAddress"": ""0xab44635462880666daa7f2be5a21c71c1590ff2b""}";
@@ -27,7 +27,7 @@ namespace ArenaSimulator.API
 
         public static async Task<string> Simulate(string avatar, string enemy)
         {
-            var client = new RestClient("https://chronicles-commander.top:5050/arenaSim");
+            var client = new RestClient("https://api.9capi.com/arenaSim");
             var request = new RestRequest();
             request.AddHeader("Content-Type", "application/json");
             var body = "{\"avatarAddress\": \""+avatar+"\",\"enemyAddress\": \""+enemy+"\"}";
@@ -40,8 +40,16 @@ namespace ArenaSimulator.API
             }
             catch(Exception ex)
             {
-                float result = float.Parse(response.Content.Replace(".",","));
-                return result.ToString();
+                for(int i=0; i<5; i++)
+                {
+                    response = client.ExecutePost(request);
+                    if(response.Content != "\"Failed\"\n")
+                    {
+                        float result = float.Parse(response.Content.Replace(".", ","));
+                        return result.ToString();
+                    }
+                }
+                throw new Exception("I was Unable to get a result for you. Something went very wrong");
             }
         }
     }
