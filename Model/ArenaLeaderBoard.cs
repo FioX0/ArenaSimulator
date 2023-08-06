@@ -18,6 +18,9 @@ namespace ArenaSimulator.Model
         [JsonProperty("rankid")]
         public int rankid { get; set; }
 
+        [JsonProperty("cp")]
+        public int cp { get; set; }
+
         [JsonProperty("score")]
         public int score { get; set; }
     }

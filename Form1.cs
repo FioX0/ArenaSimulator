@@ -5,11 +5,15 @@ namespace ArenaSimulator
 {
     public partial class Form1 : Form
     {
-        public static DateTime lastpull;
+        public static string currentPath = Environment.CurrentDirectory;
+        public static List<AvatarModel> avatars = new List<AvatarModel>();
+        public static int passiveSim = 0;
         public Form1()
         {
             InitializeComponent();
-            lastpull = DateTime.UtcNow;
+            if (!Directory.Exists(currentPath + "/sims"))
+                Directory.CreateDirectory(currentPath + "/sims");
+
             //grab RPC Data from API and pick top one which is the recommended one by NCGM.
             var RPCNodes = API.RPC.LoadRPCALL();
             string host = RPCNodes.Result[0].url;
@@ -19,6 +23,12 @@ namespace ArenaSimulator
 
             //PullAvatar Data
             var avatarList = GQL.PullData.GetAvatar(agentModel[0].publickey, host);
+            avatars = avatarList.Result;
+            foreach (AvatarModel avatar in avatarList.Result)
+            {
+                if (!Directory.Exists(currentPath + "/sims" + "/" + avatar.address))
+                    Directory.CreateDirectory(currentPath + "/sims" + "/" + avatar.address);
+            }
 
             comboBox1.DataSource = avatarList.Result;
             comboBox1.DisplayMember = "name";
@@ -31,28 +41,36 @@ namespace ArenaSimulator
             DataGridViewTextBoxColumn RankColumn = new DataGridViewTextBoxColumn();
             DataGridViewTextBoxColumn avatarNameColumn = new DataGridViewTextBoxColumn();
             DataGridViewTextBoxColumn avatarAddressColumn = new DataGridViewTextBoxColumn();
+            DataGridViewTextBoxColumn avatarCPColumn = new DataGridViewTextBoxColumn();
             DataGridViewTextBoxColumn scoreAddressColumn = new DataGridViewTextBoxColumn();
             DataGridViewButtonColumn percentageCalulator = new DataGridViewButtonColumn();
             RankColumn.Name = "Rank";
             RankColumn.Width = 50;
             avatarNameColumn.Name = "AvatarName";
             avatarAddressColumn.Name = "AvatarAddress";
-            avatarAddressColumn.Width = 150;
+            avatarAddressColumn.Width = 95;
+            avatarCPColumn.Name = "CP";
+            avatarCPColumn.Width = 55;
             scoreAddressColumn.Name = "Score";
             scoreAddressColumn.Width = 55;
             percentageCalulator.Name = "Win%";
             dataGridView1.Columns.Insert(0, RankColumn);
             dataGridView1.Columns.Insert(1, avatarNameColumn);
             dataGridView1.Columns.Insert(2, avatarAddressColumn);
-            dataGridView1.Columns.Insert(3, scoreAddressColumn);
-            dataGridView1.Columns.Insert(4, percentageCalulator);
+            dataGridView1.Columns.Insert(3, avatarCPColumn);
+            dataGridView1.Columns.Insert(4, scoreAddressColumn);
+            dataGridView1.Columns.Insert(5, percentageCalulator);
 
             //Call API for ArenaStats
             var data = API.ArenaStats.GetStats();
 
             foreach (ArenaLeaderBoard itemEntry in data.Result)
             {
-                dataGridView1.Rows.Add(itemEntry.rankid, itemEntry.avatarname, itemEntry.avataraddress, itemEntry.score, "Click Me");
+                var percentage = Helpers.SimHandler.LoadSim(itemEntry.avataraddress, comboBox1.SelectedValue.ToString());
+                if (percentage.Result != "")
+                    dataGridView1.Rows.Add(itemEntry.rankid, itemEntry.avatarname, itemEntry.avataraddress, itemEntry.cp, itemEntry.score, percentage.Result);
+                else
+                    dataGridView1.Rows.Add(itemEntry.rankid, itemEntry.avatarname, itemEntry.avataraddress,itemEntry.cp, itemEntry.score, "Click Me");
             }
         }
 
@@ -65,7 +83,8 @@ namespace ArenaSimulator
                 {
                     string enemyAddress = dataGridView1.Rows[e.RowIndex].Cells[2].Value.ToString();
                     string percentage = API.ArenaStats.Simulate(comboBox1.SelectedValue.ToString(), enemyAddress).Result;
-                    dataGridView1.Rows[e.RowIndex].Cells[4].Value = percentage+"%";
+                    dataGridView1.Rows[e.RowIndex].Cells[5].Value = percentage+"%";
+                    var result = Helpers.SimHandler.SaveSim(enemyAddress, percentage, comboBox1.SelectedValue.ToString());
                 }
             }
         }
@@ -98,15 +117,6 @@ namespace ArenaSimulator
 
         private void button1_Click(object sender, EventArgs e)
         {
-            //Pressing Refresh updates the leaderboard list.
-            //First let's check if user is spamming the button, if so let's stop them and tell them that it's pointless as we don't update it so often.
-            var diffOfDates = DateTime.UtcNow - lastpull;
-            if(diffOfDates.TotalSeconds < 10)
-            {
-                MessageBox.Show("There's no need to refresh this quick.\nLeaderboard only updates every 30seconds.");
-                return;
-            }
-
             //Let's pull the new data and clear the existing one.
             var data = API.ArenaStats.GetStats();
 
@@ -114,7 +124,11 @@ namespace ArenaSimulator
 
             foreach (ArenaLeaderBoard itemEntry in data.Result)
             {
-                dataGridView1.Rows.Add(itemEntry.rankid, itemEntry.avatarname, itemEntry.avataraddress, itemEntry.score, "Click Me");
+                var percentage = Helpers.SimHandler.LoadSim(itemEntry.avataraddress, comboBox1.SelectedValue.ToString());
+                if (percentage.Result != "")
+                    dataGridView1.Rows.Add(itemEntry.rankid, itemEntry.avatarname, itemEntry.avataraddress, itemEntry.cp, itemEntry.score, percentage.Result);
+                else
+                    dataGridView1.Rows.Add(itemEntry.rankid, itemEntry.avatarname, itemEntry.avataraddress, itemEntry.cp, itemEntry.score, "Click Me");
             }
 
             //With a new list, if the user has previously has searched for someone, let's re-focus on that target.
@@ -142,9 +156,76 @@ namespace ArenaSimulator
                     MessageBox.Show(exc.Message);
                 }
             }
+        }
 
-            //Update last time we pulled.
-            lastpull = DateTime.UtcNow;
+        private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if(dataGridView1.Columns.Count > 4)
+            {
+                passiveSim = 0;
+                comboBox1.SelectedValue = avatars[comboBox1.SelectedIndex].address;
+                button1_Click(sender, e);
+            }
+        }
+
+        private void checkBox1_CheckedChanged(object sender, EventArgs e)
+        {
+            if(checkBox1.Checked)
+            {
+                passiveSim = 1;
+                string aName =  comboBox1.Text;
+                string aAddress = comboBox1.SelectedValue.ToString();
+                new Thread(() =>
+                {
+                    Thread.CurrentThread.IsBackground = true;
+                    PassiveSimmer(aName,aAddress);
+                }).Start();
+            }
+            else
+            {
+                passiveSim = 0;
+            }
+        }
+
+        private void PassiveSimmer(string avatarName, string avatarAddress)
+        {
+            List<DataGridViewRow> ListOfRows = new List<DataGridViewRow>();
+            while(passiveSim == 1)
+            {
+                //find user location
+                DataGridViewRow userRow = null;
+                foreach (DataGridViewRow row in dataGridView1.Rows)
+                {
+                    if (row.Cells[1].Value != null)
+                    {
+                        ListOfRows.Add(row);
+                    }
+                }
+
+                userRow = ListOfRows.Where(s => s.Cells[1].Value.ToString().ToLower() == avatarName.ToLower()).FirstOrDefault();
+
+                if(userRow!= null)
+                {
+                    //Got a row and a list of rows we can play around with.
+                    int maxSim = userRow.Index + 20;
+                    int minSim = userRow.Index - 100;
+                    if(minSim < 0) 
+                        minSim = 0;
+                    for(int i = maxSim; i > minSim; i--)
+                    {
+                        if (passiveSim == 1)
+                        {
+                            string enemyAddress = dataGridView1.Rows[ListOfRows[i].Index].Cells[2].Value.ToString();
+                            string percentage = API.ArenaStats.Simulate(avatarAddress, enemyAddress).Result;
+                            dataGridView1.Rows[ListOfRows[i].Index].Cells[5].Value = percentage + "%";
+                            var result = Helpers.SimHandler.SaveSim(enemyAddress, percentage, avatarAddress);
+                            Thread.Sleep(5000);
+                        }
+                        else
+                            break;
+                    }
+                }
+            }
         }
     }
 }
