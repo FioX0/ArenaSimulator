@@ -118,6 +118,8 @@ namespace ArenaSimulator
         private void button1_Click(object sender, EventArgs e)
         {
             //Let's pull the new data and clear the existing one.
+            passiveSim = 0;
+            checkBox1.Checked = false;
             var data = API.ArenaStats.GetStats();
 
             dataGridView1.Rows.Clear();
@@ -163,6 +165,7 @@ namespace ArenaSimulator
             if(dataGridView1.Columns.Count > 4)
             {
                 passiveSim = 0;
+                checkBox1.Checked = false;
                 comboBox1.SelectedValue = avatars[comboBox1.SelectedIndex].address;
                 button1_Click(sender, e);
             }
@@ -192,39 +195,41 @@ namespace ArenaSimulator
             List<DataGridViewRow> ListOfRows = new List<DataGridViewRow>();
             while(passiveSim == 1)
             {
-                //find user location
-                DataGridViewRow userRow = null;
-                foreach (DataGridViewRow row in dataGridView1.Rows)
+                try
                 {
-                    if (row.Cells[1].Value != null)
+                    //find user location
+                    DataGridViewRow userRow = null;
+                    foreach (DataGridViewRow row in dataGridView1.Rows)
                     {
-                        ListOfRows.Add(row);
+                        if (row.Cells[1].Value != null)
+                            ListOfRows.Add(row);
                     }
-                }
 
-                userRow = ListOfRows.Where(s => s.Cells[1].Value.ToString().ToLower() == avatarName.ToLower()).FirstOrDefault();
+                    userRow = ListOfRows.Where(s => s.Cells[1].Value.ToString().ToLower() == avatarName.ToLower()).FirstOrDefault();
 
-                if(userRow!= null)
-                {
-                    //Got a row and a list of rows we can play around with.
-                    int maxSim = userRow.Index + 20;
-                    int minSim = userRow.Index - 100;
-                    if(minSim < 0) 
-                        minSim = 0;
-                    for(int i = maxSim; i > minSim; i--)
+                    if(userRow != null)
                     {
-                        if (passiveSim == 1)
+                        //Got a row and a list of rows we can play around with.
+                        int maxSim = userRow.Index + 50;
+                        int minSim = userRow.Index - 100;
+                        if (minSim < 0)
+                            minSim = 0;
+                        for (int i = minSim; i < maxSim; i++)
                         {
-                            string enemyAddress = dataGridView1.Rows[ListOfRows[i].Index].Cells[2].Value.ToString();
-                            string percentage = API.ArenaStats.Simulate(avatarAddress, enemyAddress).Result;
-                            dataGridView1.Rows[ListOfRows[i].Index].Cells[5].Value = percentage + "%";
-                            var result = Helpers.SimHandler.SaveSim(enemyAddress, percentage, avatarAddress);
-                            Thread.Sleep(5000);
+                            if(passiveSim == 1)
+                            {
+                                string enemyAddress = dataGridView1.Rows[ListOfRows[i].Index].Cells[2].Value.ToString();
+                                string percentage = API.ArenaStats.Simulate(avatarAddress, enemyAddress).Result;
+                                dataGridView1.Rows[ListOfRows[i].Index].Cells[5].Value = percentage + "%";
+                                var result = Helpers.SimHandler.SaveSim(enemyAddress, percentage, avatarAddress);
+                                Thread.Sleep(5000);
+                            }
+                            else
+                                break;
                         }
-                        else
-                            break;
                     }
                 }
+                catch(Exception ex) { passiveSim = 0; }
             }
         }
     }
