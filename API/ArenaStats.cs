@@ -1,5 +1,6 @@
 ﻿using ArenaSimulator.Model;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using RestSharp;
 using System;
 using System.Collections.Generic;
@@ -35,7 +36,8 @@ namespace ArenaSimulator.API
             RestResponse response = client.ExecutePost(request);
             try
             {
-                float result = float.Parse(response.Content, CultureInfo.InvariantCulture);
+                JObject result2 = JObject.Parse(response.Content);
+                float result = float.Parse((string)result2["winPercentage"], CultureInfo.InvariantCulture);
                 return result.ToString();
             }
             catch(Exception ex)

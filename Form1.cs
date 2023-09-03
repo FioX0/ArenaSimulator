@@ -222,7 +222,7 @@ namespace ArenaSimulator
                                 string percentage = API.ArenaStats.Simulate(avatarAddress, enemyAddress).Result;
                                 dataGridView1.Rows[ListOfRows[i].Index].Cells[5].Value = percentage + "%";
                                 var result = Helpers.SimHandler.SaveSim(enemyAddress, percentage, avatarAddress);
-                                Thread.Sleep(5000);
+                                Thread.Sleep(2000);
                             }
                             else
                                 break;

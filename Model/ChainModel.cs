@@ -9,12 +9,6 @@ namespace ArenaSimulator.Model
 {
     public class ChainModel
     {
-        [JsonProperty("ID")]
-        public int ID { get; set; }
-
-        [JsonProperty("address")]
-        public string address { get; set; }
-
         [JsonProperty("name")]
         public string name { get; set; }
 
@@ -28,12 +22,12 @@ namespace ArenaSimulator.Model
         public string active { get; set; }
 
         [JsonProperty("difference")]
-        public int difference { get; set; }
+        public string difference { get; set; }
 
         [JsonProperty("users")]
         public int users { get; set; }
 
-        [JsonProperty("index")]
-        public int index { get; set; }
+        [JsonProperty("response_time_seconds")]
+        public float response_time_seconds { get; set; }
     }
 }
