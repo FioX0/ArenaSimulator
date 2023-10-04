@@ -18,8 +18,6 @@ namespace ArenaSimulator.API
             var client = new RestClient("https://api.9capi.com/arenaLeaderboard");
             var request = new RestRequest();
             request.AddHeader("Content-Type", "application/json");
-            //var body = @"{""avatarAddress"": ""0x3b7a47daaece48807fc00a310b05bd9f5d26736e"",""enemyAddress"": ""0xab44635462880666daa7f2be5a21c71c1590ff2b""}";
-            //request.AddParameter("application/json", body, ParameterType.RequestBody);
             RestResponse response = client.Execute(request);
             var result = JsonConvert.DeserializeObject<List<ArenaLeaderBoard>>(response.Content);
 
